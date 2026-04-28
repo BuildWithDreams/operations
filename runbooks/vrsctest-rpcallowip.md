@@ -6,7 +6,7 @@
 
 **Chain:** VRSCTEST testnet
 **Network:** `net-vrsctest` (`10.200.0.0/24`)
-**Config:** `vrsctest/data_dir/vrsctest/vrsctest.conf`
+**Config:** `vrsctest/data_dir/vrsctest.conf`
 
 ---
 
@@ -22,7 +22,7 @@
 ### Step 1 — Stop vRSCTEST
 
 ```
-Delegate: ansible-playbook -i inventory.ini playbooks/08b-start-vrsctest.yml
+Delegate: ansible-playbook -i inventory.ini playbooks/10b-shutdown-vrsctest.yml
 ```
 
 > The daemon reads config at startup. Changes to the config file while it's running have no effect until the daemon is restarted.
@@ -35,7 +35,7 @@ Delegate: ansible-playbook -i inventory.ini playbooks/16b-add-vrsctest-rpc-allow
 
 This playbook:
 1. Inspects `net-vrsctest` to detect the actual subnet
-2. Appends `rpcallowip=<subnet>/<cidr>` to `vrsctest/data_dir/vrsctest/vrsctest.conf`
+2. Appends `rpcallowip=<subnet>/<cidr>` to `vrsctest/data_dir/vrsctest.conf`
 3. Is **idempotent** — safe to run multiple times; only adds the entry if not already present
 
 ### Step 3 — Start vRSCTEST
@@ -62,7 +62,7 @@ Confirm:
 To remove the `rpcallowip` entry after approval:
 
 ```bash
-ssh bwd "sudo sed -i '/^rpcallowip=10.200.0.0/d' /home/dream-hermes-agent/docker-verusd/vrsctest/data_dir/vrsctest/vrsctest.conf"
+ssh bwd "sudo sed -i '/^rpcallowip=10.200.0.0/d' /home/dream-hermes-agent/docker-verusd/vrsctest/data_dir/vrsctest.conf"
 ```
 
 Then restart: `Delegate: ansible-playbook -i inventory.ini playbooks/08b-start-vrsctest.yml`
@@ -73,8 +73,9 @@ Then restart: `Delegate: ansible-playbook -i inventory.ini playbooks/08b-start-v
 
 | # | Playbook | Purpose |
 |---|----------|---------|
+| `10b` | `10b-shutdown-vrsctest.yml` | Stop vRSCTEST |
+| `08b` | `08b-start-vrsctest.yml` | Start vRSCTEST |
 | `16b` | `16b-add-vrsctest-rpc-allowip.yml` | Add rpcallowip (this procedure) |
-| `08b` | `08b-start-vrsctest.yml` | Start/stop vRSCTEST |
 | `15b` | `15b-sync-status-vrsctest.yml` | Check sync status |
 
 ---
