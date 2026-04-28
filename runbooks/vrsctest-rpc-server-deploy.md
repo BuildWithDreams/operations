@@ -6,7 +6,7 @@
 
 **Chain:** VRSCTEST testnet
 **Network:** `net-vrsctest` (`10.200.0.0/24`)
-**Daemon:** `10.200.0.11:27486`
+**Daemon:** `10.200.0.11:18843`
 **RPC server:** `10.200.0.12:37486` → `127.0.0.1:47486`
 
 ---
@@ -38,7 +38,7 @@ VRSC mainnet and VRSCTEST use identical octets on their respective networks — 
 
 | Service | Internal port | External host port |
 |---|---|---|
-| VRSCTEST daemon RPC | `27486` | `127.0.0.1:27486` |
+| VRSCTEST daemon RPC | `18843` | `127.0.0.1:18843` |
 | VRSCTEST RPC server | `37486` | `127.0.0.1:47486` |
 
 If the VRSC mainnet RPC server is already running on `127.0.0.1:37486`, the VRSCTEST server uses `47486` — no conflict.
@@ -56,8 +56,8 @@ Delegate: ansible-playbook -i inventory.ini playbooks/21b-rpc-server-configure.y
 ```
 
 This playbook:
-1. Reads daemon credentials from `vrsctest/data_dir/VRSCTEST.conf` (generated at first start)
-2. Writes `Conf.toml` targeting `http://<user>:<pass>@10.200.0.11:27486`
+1. Reads daemon credentials from `vrsctest/data_dir/vrsctest.conf` (generated at first start)
+2. Writes `Conf.toml` targeting `http://<user>:<pass>@10.200.0.11:18843`
 3. Sets server bind to `10.200.0.12:37486`
 4. Creates the multi-stage `Dockerfile`
 
@@ -113,7 +113,7 @@ The RPC server's `Conf.toml` credentials **must match** the daemon's `VRSCTEST.c
 
 **To read daemon credentials from inside the container:**
 ```bash
-docker exec dev200-vrsctest-1 cat /root/.komodo/VRSCTEST/VRSCTEST.conf | grep -E '^rpc(user|password|port)'
+docker exec dev200-vrsctest-1 cat /root/.komodo/vrsctest/vrsctest.conf | grep -E '^rpc(user|password|port)'
 ```
 
 If credentials need to be rotated, update both files and restart both the daemon and the RPC server.
