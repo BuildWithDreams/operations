@@ -44,28 +44,33 @@ VRSC mainnet and VRSCTEST use identical octets on their respective networks — 
 
 | Service | Internal port | External host port |
 |---|---|---|
-| VRSCTEST QR Creator | `3000` | `127.0.0.1:3000` (internal only, no host exposure) |
+| VRSCTEST QR Creator | `3000` | **None** (Docker network only) |
 
-The QR Creator is **not exposed on the host** — it is only reachable from within `net-vrsctest`. Caddy (connected to both networks) proxies external HTTPS traffic to it.
+The QR Creator has **no host port binding** — it is reachable only from within `net-vrsctest`. Caddy (which is connected to both `net-vrsc-blue` and `net-vrsctest`) proxies all external HTTPS traffic to it over the Docker network.
+
+This avoids a port conflict with the mainnet QR Creator, which already binds `127.0.0.1:3000` on the same host.
 
 ---
 
 ## Architecture
+
+{: .warning }
+> **Caddy is dual-homed.** After running `37-qrcodes-caddy-network.yml`, the Caddy container (`mains_blue_caddy-caddy-1`) is connected to both `net-vrsc-blue` and `net-vrsctest` simultaneously. This is the mechanism that allows a single Caddy instance to route traffic to upstreams on either network based on the requested domain name.
 
 ```
 Internet
   │
   ▼
 Caddy (mains_blue_caddy-caddy-1)
-  ├─ net-vrsc-blue: 10.201.0.10
-  └─ net-vrsctest:  auto-assigned
+  ├─ net-vrsc-blue: 10.201.0.10  (existing)
+  └─ net-vrsctest:  auto-assigned  (added by playbook 37)
         │
         ▼
   qrcodes.vrsctest.buildwithdreams.com
         │
         ▼
   QR Creator container (dev200_qr-qr-1)
-    at 10.200.0.13:3000
+    at 10.200.0.13:3000 (net-vrsctest only)
 ```
 
 ---
