@@ -10,7 +10,7 @@ heading_anchors: true
 # Remote theme (loaded via jekyll-remote-theme)
 remote_theme: just-the-docs/just-the-docs@v0.12.0
 
-markdown: GFM
+markdown: kramdown
 kramdown:
   syntax_highlighter_opts:
     block:

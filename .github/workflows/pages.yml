@@ -29,7 +29,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          gem install jekyll jekyll-remote-theme just-the-docs jekyll-sass-converter:3.0.0 sass-embedded
+          gem install jekyll jekyll-remote-theme just-the-docs sass-embedded
 
       - name: Build
         run: jekyll build --baseurl="${{ vars.PAGES_BASE_URL || '' }}"
