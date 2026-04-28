@@ -26,7 +26,8 @@ Step-by-step operational procedures for BWD infrastructure.
 
 | Procedure | Description | Automated |
 |-----------|-------------|-----------|
-| [Deploy RPC server](runbooks/rpc-server-deploy.html) | Build and deploy Rust RPC server | No |
+| [Deploy RPC server on VRSCTEST](runbooks/vrsctest-rpc-server-deploy.html) | Build and deploy Rust RPC server on VRSCTEST testnet | No |
+| [Deploy RPC server](runbooks/rpc-server-deploy.html) | Build and deploy Rust RPC server (VRSC mainnet) | No |
 | [Deploy RVT SPA](runbooks/rvt-deploy.html) | Deploy RVT single-page app | No |
 
 ## Emergency
