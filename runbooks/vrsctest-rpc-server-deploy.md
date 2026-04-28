@@ -7,7 +7,7 @@
 **Chain:** VRSCTEST testnet
 **Network:** `net-vrsctest` (`10.200.0.0/24`)
 **Daemon:** `10.200.0.11:27486`
-**RPC server:** `10.200.0.12:37486` → `127.0.0.1:37486`
+**RPC server:** `10.200.0.12:37486` → `127.0.0.1:47486`
 
 ---
 
@@ -34,9 +34,16 @@ VRSC mainnet and VRSCTEST use identical octets on their respective networks — 
 
 ## Port Binding for Coexistence
 
-If the VRSC mainnet RPC server is already running on `127.0.0.1:37486`, the VRSCTEST server must use a different host port (e.g. `37487`). The internal container port `37486` can remain the same — only the host port mapping changes.
+**Port convention:** VRSCTEST services use `daemon_port + 10000` for externally exposed ports. This avoids collision with VRSC mainnet services.
 
-Adjust `host_rpc_port` in `23b-rpc-server-deploy.yml` if coexistence is required.
+| Service | Internal port | External host port |
+|---|---|---|
+| VRSCTEST daemon RPC | `27486` | `127.0.0.1:27486` |
+| VRSCTEST RPC server | `37486` | `127.0.0.1:47486` |
+
+If the VRSC mainnet RPC server is already running on `127.0.0.1:37486`, the VRSCTEST server uses `47486` — no conflict.
+
+Adjust `host_rpc_port` in `23b-rpc-server-deploy.yml` if a different external port is needed.
 
 ---
 
@@ -93,7 +100,7 @@ Confirm:
 
 To verify manually from the local machine:
 ```bash
-curl -s -f -X POST 'http://localhost:37486/api/getinfo' \
+curl -s -f -X POST 'http://localhost:47486/api/getinfo' \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"getinfo","params":[]}'
 ```
@@ -117,7 +124,7 @@ If credentials need to be rotated, update both files and restart both the daemon
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `curl: (7) Connection refused` | Server not listening yet | Wait 10s, retry. Check `docker ps` shows container running |
+| `curl: (7) Connection refused` | Server not listening yet | Wait 10s, retry on port `47486`. Check `docker ps` shows container running |
 | TOML parse error in logs | Conf.toml in image is stale | Re-run Step 2 with `-e rpc_server_rebuild=true` |
 | `{"error":{"code":-32603,"message":"Internal error"}}` | Credential mismatch | Sync credentials between Conf.toml and VRSCTEST.conf |
 | Container keeps restarting | Conf.toml error or missing env | `docker logs dev200_rpc-rpc-1`, fix Conf.toml, rebuild |
