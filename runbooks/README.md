@@ -27,6 +27,7 @@ Step-by-step operational procedures for BWD infrastructure.
 | Procedure | Description | Automated |
 |-----------|-------------|-----------|
 | [Deploy RPC Server on VRSCTEST](vrsctest-rpc-server-deploy/) | Build and deploy Rust RPC server on VRSCTEST testnet | No |
+| [Deploy QRcodes on VRSCTEST](qrcodes-vrsctest-deploy/) | Build and deploy QRcode creator on VRSCTEST testnet | No |
 | [Deploy RPC Server](rpc-server-deploy/) | Build and deploy Rust RPC server (VRSC mainnet) | No |
 | [Deploy RVT SPA](rvt-deploy/) | Deploy RVT single-page app | No |
 
