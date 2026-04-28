@@ -28,11 +28,10 @@ jobs:
           bundler: none
 
       - name: Install Dependencies
-        run: |
-          gem install jekyll jekyll-remote-theme just-the-docs sass-embedded
+        run: gem install jekyll just-the-docs sass-embedded
 
       - name: Build
-        run: jekyll build --baseurl="${{ vars.PAGES_BASE_URL || '' }}"
+        run: jekyll build
         env:
           JEKYLL_ENV: production
 

@@ -1,20 +1,14 @@
 title: BWD Operations
 description: Living operations documentation for BuildWithDreams infrastructure
-baseurl: ""
+baseurl: "/operations"
 url: "https://buildwithdreams.github.io/operations"
+
+# Use gem-based theme (GitHub Pages whitelisted)
+theme: just-the-docs
 
 # Just The Docs settings
 nav_include: true
 heading_anchors: true
-
-# Remote theme (loaded via jekyll-remote-theme)
-remote_theme: just-the-docs/just-the-docs@v0.10.0
-
-markdown: kramdown
-kramdown:
-  syntax_highlighter_opts:
-    block:
-      theme: dark-mode
 
 # Navigation structure
 navigation:
@@ -31,3 +25,9 @@ navigation:
     url: /infrastructure/
   - title: Playbooks
     url: /playbooks/
+
+markdown: kramdown
+kramdown:
+  syntax_highlighter_opts:
+    block:
+      theme: dark-mode
