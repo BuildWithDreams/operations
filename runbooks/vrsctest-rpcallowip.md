@@ -1,3 +1,10 @@
+---
+layout: default
+title: Add rpcallowip for VRSCTEST
+nav_order: 1
+parent: Runbooks
+---
+
 # Add rpcallowip for VRSCTEST Docker Network
 
 **Purpose:** Allow applications running in containers on the `net-vrsctest` Docker network to connect to the vRSCTEST daemon's RPC port.

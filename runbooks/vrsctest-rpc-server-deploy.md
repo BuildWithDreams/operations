@@ -1,3 +1,10 @@
+---
+layout: default
+title: Deploy RPC Server on VRSCTEST
+nav_order: 2
+parent: Runbooks
+---
+
 # Deploy RPC Server on VRSCTEST
 
 **Purpose:** Build and deploy the Rust Verus RPC server on the VRSCTEST testnet, providing a JSON-RPC API endpoint for external consumers.

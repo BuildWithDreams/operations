@@ -8,10 +8,26 @@ nav_include: true
 heading_anchors: true
 
 # Remote theme (loaded via jekyll-remote-theme)
-remote_theme: just-the-docs/just-the-docs@v0.12.0
+remote_theme: just-the-docs/just-the-docs@v0.10.0
 
 markdown: kramdown
 kramdown:
   syntax_highlighter_opts:
     block:
       theme: dark-mode
+
+# Navigation structure
+navigation:
+  - title: Home
+    url: /
+  - title: Runbooks
+    url: /runbooks/
+    pages:
+      - title: Add rpcallowip for VRSCTEST
+        url: /runbooks/vrsctest-rpcallowip/
+      - title: Deploy RPC Server on VRSCTEST
+        url: /runbooks/vrsctest-rpc-server-deploy/
+  - title: Infrastructure
+    url: /infrastructure/
+  - title: Playbooks
+    url: /playbooks/
