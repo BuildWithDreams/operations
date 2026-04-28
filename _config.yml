@@ -1,20 +1,14 @@
 title: BWD Operations
 description: Living operations documentation for BuildWithDreams infrastructure
-theme: just-the-docs
-github_repo: "BuildWithDreams/operations"
 baseurl: ""
-url: "https://buildwithdreams.github.io"
+url: "https://buildwithdreams.github.io/operations"
 
 # Just The Docs settings
 nav_include: true
 heading_anchors: true
 
-# GitHub Pages build settings
-plugins:
-  - jekyll-remote-theme
-  - github-pages
-
-remote_theme: pmarsceill/just-the-docs@v0.10.0
+# Remote theme (loaded via jekyll-remote-theme)
+remote_theme: just-the-docs/just-the-docs@v0.10.0
 
 markdown: GFM
 kramdown:
