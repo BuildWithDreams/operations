@@ -25,13 +25,16 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'
+          bundler: none
 
       - name: Install Dependencies
         run: |
-          gem install jekyll jekyll-remote-theme just-the-docs
+          gem install jekyll jekyll-remote-theme just-the-docs jekyll-sass-converter:3.0.0 sass-embedded
 
       - name: Build
         run: jekyll build --baseurl="${{ vars.PAGES_BASE_URL || '' }}"
+        env:
+          JEKYLL_ENV: production
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
