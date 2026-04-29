@@ -151,8 +151,8 @@ Delegate: ansible-playbook -i inventory.ini playbooks/42-idcreate-caddy-route.ym
 
 This playbook:
 1. **Pre-flight check** — verifies Caddy is connected to `net-vrsctest`; aborts if missing
-2. Appends `idcreate.vrsctest.buildwithdreams.com` route block to the Caddyfile using `blockinfile`
-3. Runs `caddy fmt --overwrite` to format the file cleanly
+2. Appends `idcreate.vrsctest.buildwithdreams.com` route block to the host Caddyfile using `blockinfile`
+3. Copies the updated Caddyfile into the container (`docker cp` — needed because the container mount is read-only)
 4. Validates the Caddyfile before reloading (aborts if invalid)
 5. Runs `docker exec caddy caddy reload` to apply the new route
 6. **Health check** — hits `http://10.200.0.14:5003/health` from inside the Caddy container; warns if unreachable
