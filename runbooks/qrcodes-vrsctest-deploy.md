@@ -135,10 +135,13 @@ Delegate: ansible-playbook -i inventory.ini playbooks/38-qrcodes-caddy-route.yml
 ```
 
 This playbook:
-1. Appends `qrcodes.vrsctest.buildwithdreams.com` route block to the Caddyfile using `blockinfile`
-2. Validates the Caddyfile before reloading
-3. Runs `docker exec caddy caddy reload` to apply the new route
-4. Is **idempotent** — safe to re-run; route block already present on subsequent runs
+1. **Pre-flight check** — verifies Caddy is connected to `net-vrsctest` before touching anything; aborts if missing
+2. Appends `qrcodes.vrsctest.buildwithdreams.com` route block to the Caddyfile using `blockinfile`
+3. Runs `caddy fmt --overwrite` to format the file cleanly (no more Caddy warnings)
+4. Validates the Caddyfile before reloading (aborts if invalid)
+5. Runs `docker exec caddy caddy reload` to apply the new route
+6. **Health check** — hits the upstream from inside the Caddy container; warns if the QR Creator is unreachable
+7. Is **idempotent** — safe to re-run; skips all changes if route already present
 
 ### Step 6 — Verify
 
@@ -162,7 +165,7 @@ ssh <host> "curl -s http://10.200.0.13:3000/ | head"
 | Symptom | Cause | Fix |
 |---|---|---|
 | `502 Bad Gateway` | Caddy not yet connected to `net-vrsctest` | Run `37-qrcodes-caddy-network.yml` |
-| `Connection refused` | QR Creator container not running | Run `36-qrcodes-deploy.yml`; check `docker logs dev200_qr-qr-1` |
+| `Connection refused` | QR Creator container not running, or not reachable from Caddy | Run `36-qrcodes-deploy.yml`; check `docker logs dev200_qr-qr-1`; verify with `docker exec mains_blue_caddy-caddy-1 wget -q -O - --timeout=5 http://10.200.0.13:3000/` |
 | `curl: (6) Could not resolve host` | DNS not propagated | Wait 5-10 minutes for Let's Encrypt DNS propagation |
 | Container keeps restarting | Health check failing | `docker logs dev200_qr-qr-1`; rebuild with `-e qrcodes_rebuild=true` |
 | Route not responding | Caddyfile stale | Run `38-qrcodes-caddy-route.yml` again to reload |
@@ -183,7 +186,7 @@ ssh bwd "docker rm -f dev200_qr-qr-1"
 ```
 
 To remove the Caddy route (disables the domain only, container keeps running):
-Edit `~/caddy/Caddyfile` and remove the `qrcodes.vrsctest.buildwithdreams.com` block, then:
+The route block is managed by playbook `38`. To remove it cleanly, edit `~/caddy/Caddyfile` and remove the `qrcodes.vrsctest.buildwithdreams.com` block, then reload:
 ```bash
 ssh bwd "docker exec mains_blue_caddy-caddy-1 caddy reload --config /config/caddy/Caddyfile"
 ```
