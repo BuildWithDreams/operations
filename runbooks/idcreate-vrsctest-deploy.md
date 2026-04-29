@@ -82,7 +82,7 @@ HEALTH_RPC_DAEMON=verusd_vrsc
 verusd_vrsc_rpc_enabled=true
 verusd_vrsc_rpc_user=<from vrsctest.conf>
 verusd_vrsc_rpc_password=<from vrsctest.conf>
-verusd_vrsc_rpc_port=18842
+verusd_vrsc_rpc_port=18843
 verusd_vrsc_rpc_host=10.200.0.11
 ```
 
@@ -201,7 +201,7 @@ ssh bwd "docker rm -f dev200_idcreate-api-1 dev200_idcreate-worker-1"
 ```
 
 **RPC connection refused — common cause:**
-The VRSCTEST daemon port is `18842`, not the standard `27486`. Verify:
+The VRSCTEST daemon port is `18843`, not the standard `27486`. Verify:
 ```bash
 ssh bwd "docker exec dev200-vrsctest-1 verus-cli -chain=VRSCTEST getinfo | grep port"
 ```
