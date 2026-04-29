@@ -143,6 +143,22 @@ This playbook:
 
 > If `.env` already exists, step 1 (copy from env.sample) is skipped and RPC vars are updated in place — safe to re-run.
 
+### Step 3.5 — Issue API key
+
+```
+Delegate: ansible-playbook -i inventory.ini playbooks/43-idcreate-add-api-key.yml
+```
+
+This playbook:
+1. Checks if `REGISTRAR_API_KEYS` is already in `~/svc-idcreate/.env`
+2. If missing: generates a `BWD_<32-hex>` key and writes it (idempotent — skips if already present)
+3. Prints the key to the ansible output — **copy it now**, it will not be shown again
+
+> After running this, you **must restart the containers** for the new env var to take effect:
+> ```bash
+> ssh bwd "cd ~/svc-idcreate && docker compose -p dev200_idcreate restart"
+> ```
+
 ### Step 4 — Add Caddy route
 
 ```
@@ -238,6 +254,7 @@ Delegate: ansible-playbook -i inventory.ini playbooks/42-idcreate-caddy-route.ym
 | `40` | `40-idcreate-build.yml` | Build Docker image |
 | `41` | `41-idcreate-deploy.yml` | Deploy api+worker on `net-vrsctest` at `10.200.0.14`; writes `.env` |
 | `42` | `42-idcreate-caddy-route.yml` | Add HTTPS route in Caddy |
+| `43` | `43-idcreate-add-api-key.yml` | Generate and persist `REGISTRAR_API_KEYS` test key |
 | `08b` | `08b-start-vrsctest.yml` | Start VRSCTEST daemon (prereq) |
 | `16b` | `16b-add-vrsctest-rpc-allowip.yml` | Ensure `rpcallowip=10.200.0.0/24` (prereq) |
 | `37` | `37-qrcodes-caddy-network.yml` | Connect Caddy to `net-vrsctest` (already done) |
