@@ -67,6 +67,36 @@ Confirm the containers started cleanly with no errors referencing the R-address.
 
 ---
 
+## Quirk: `lineinfile` may duplicate on first run
+
+On first run, if `SOURCE_OF_FUNDS=""` (empty, unquoted in `env.sample`), `lineinfile` with `regexp: '^SOURCE_OF_FUNDS='` inserts a new line rather than replacing the existing one. The service still picks up the correct value (last occurrence wins), but `.env` ends up with two lines.
+
+**Fix applied in playbook:** `regexp` is now `^SOURCE_OF_FUNDS=.*` which covers both quoted and unquoted forms and replaces in-place on all runs.
+
+If you hit a duplicate after a pre-existing `.env`:
+```bash
+ssh bwd "python3 -c \"
+with open('/home/dream-hermes-agent/svc-idcreate/.env') as f:
+    lines = f.readlines()
+# remove empty SOURCE_OF_FUNDS lines, keep the one with a value
+seen, out = set(), []
+for line in lines:
+    if line.strip().startswith('SOURCE_OF_FUNDS='):
+        if line.strip() == 'SOURCE_OF_FUNDS=\"\"':
+            continue  # drop empty
+        if 'SOURCE_OF_FUNDS' not in seen:
+            out.append(line)
+            seen.add('SOURCE_OF_FUNDS')
+    else:
+        out.append(line)
+with open('/home/dream-hermes-agent/svc-idcreate/.env', 'w') as f:
+    f.writelines(out)
+\""
+ssh bwd "cd ~/svc-idcreate && docker compose -p dev200_idcreate up -d --force-recreate"
+```
+
+---
+
 ## Rollback
 
 To update with a different R-address, simply re-run the playbook with the new address:
