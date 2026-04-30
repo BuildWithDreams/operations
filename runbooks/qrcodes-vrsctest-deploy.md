@@ -7,55 +7,18 @@ parent: Runbooks
 
 # Deploy QRcodes on VRSCTEST
 
-**Purpose:** Build and deploy the Verus Identity QR Creator on the VRSCTEST testnet, accessible via `https://qrcodes.vrsctest.buildwithdreams.com`.
+**Purpose:** Build and deploy the Verus Identity QR Creator on VRSCTEST, accessible at `https://qrcodes.vrsctest.buildwithdreams.com`.
 
-**Why:** The QR Creator generates Verus identity QR codes (i.e., self-sovereign identity documents). It is a Node.js/TypeScript web application that proxies Verus daemon calls for signing and verification workflows.
+**What it is:** A Node.js/TypeScript web app that generates Verus identity QR codes. It proxies Verus daemon calls for signing and verification workflows. The app reads VRSCTEST RPC credentials from `config.js` (written at deploy time) and connects to the VRSCTEST daemon at `10.200.0.11:18843`.
 
 **Chain:** VRSCTEST testnet
 **Network:** `net-vrsctest` (`10.200.0.0/24`)
-**QR Creator:** `10.200.0.13:3000`
+**Upstream:** `10.200.0.13:3000` (Docker network only, no host port)
 **URL:** `https://qrcodes.vrsctest.buildwithdreams.com`
 
 ---
 
-## Prerequisites
-
-- VRSCTEST daemon **running** (`08b-start-vrsctest.yml` complete, `docker ps` healthy)
-- HITL approval obtained
-- `verus-identity-update-qr-creator-main` repo will be cloned on BWD (if not already present)
-
----
-
-## IP Addressing Convention
-
-All chains use the same final-octet convention within their `/24` Docker network:
-
-| Role | IP |
-|---|---|
-| Daemon | `.11` |
-| RPC server | `.12` |
-| QR Creator | `.13` |
-
-VRSC mainnet and VRSCTEST use identical octets on their respective networks — no IP conflict between them.
-
----
-
-## Port Binding
-
-| Service | Internal port | External host port |
-|---|---|---|
-| VRSCTEST QR Creator | `3000` | **None** (Docker network only) |
-
-The QR Creator has **no host port binding** — it is reachable only from within `net-vrsctest`. Caddy (which is connected to both `net-vrsc-blue` and `net-vrsctest`) proxies all external HTTPS traffic to it over the Docker network.
-
-This avoids a port conflict with the mainnet QR Creator, which already binds `127.0.0.1:3000` on the same host.
-
----
-
 ## Architecture
-
-{: .warning }
-> **Caddy is dual-homed.** After running `37-qrcodes-caddy-network.yml`, the Caddy container (`mains_blue_caddy-caddy-1`) is connected to both `net-vrsc-blue` and `net-vrsctest` simultaneously. This is the mechanism that allows a single Caddy instance to route traffic to upstreams on either network based on the requested domain name.
 
 ```
 Internet
@@ -63,99 +26,168 @@ Internet
   ▼
 Caddy (mains_blue_caddy-caddy-1)
   ├─ net-vrsc-blue: 10.201.0.10  (existing)
-  └─ net-vrsctest:  auto-assigned  (added by playbook 37)
+  └─ net-vrsctest: auto-assigned  (added by playbook 37)
         │
         ▼
   qrcodes.vrsctest.buildwithdreams.com
         │
         ▼
   QR Creator container (dev200_qr-qr-1)
-    at 10.200.0.13:3000 (net-vrsctest only)
+    at 10.200.0.13:3000
+    image: buildwithdreams/verus-qr-creator:vrsctest
+```
+
+Caddy is dual-homed — one container on two networks. It routes `qrcodes.vrsctest.*` to the VRSCTEST upstream based on the Host header, and all other routes to mainnet upstreams.
+
+---
+
+## IP Addressing Convention
+
+| Role | IP (VRSCTEST) | IP (VRSC mainnet) |
+|------|---------------|-------------------|
+| Daemon | `.11` | `.11` |
+| RPC server | `.12` | `.12` |
+| QR Creator | `.13` | `.13` |
+
+Same final octets on separate `/24` networks — no conflict between chains.
+
+---
+
+## Prerequisites
+
+- VRSCTEST daemon **running** and **synced** (`docker ps` shows `vrsctest` healthy)
+- HITL approval obtained
+- Repo `BuildWithDreams/verus-identity-update-qr-creator-main` will be cloned to BWD on first run
+
+---
+
+## Playbook Chain
+
+Run in order. All are idempotent — safe to re-run.
+
+| Step | Playbook | Action |
+|------|----------|--------|
+| 1 | `34-qrcodes-vrsctest-clone.yml` | Clone repo to BWD |
+| 2 | `34b-qrcodes-vrsctest-configure.yml` | Write `config.js` + `Dockerfile` to the clone |
+| 3 | `35-qrcodes-vrsctest-build.yml` | Build Docker image |
+| 4 | `36-qrcodes-vrsctest-deploy.yml` | Deploy container on `net-vrsctest` |
+| 5 | `37-qrcodes-vrsctest-caddy-network.yml` | Attach Caddy to `net-vrsctest` |
+| 6 | `38-qrcodes-vrsctest-caddy-route.yml` | Add HTTPS route in Caddy |
+
+---
+
+## Step 1 — Clone Repository
+
+```bash
+cd ~/dream-pbaas-provisioning
+ansible-playbook -i inventory.ini playbooks/34-qrcodes-vrsctest-clone.yml
+```
+
+Clones `BuildWithDreams/verus-identity-update-qr-creator-main` to `~/verus-identity-update-qr-creator-main` on BWD. Skips if already present.
+
+---
+
+## Step 2 — Configure (`config.js` + `Dockerfile`)
+
+```bash
+ansible-playbook -i inventory.ini playbooks/34b-qrcodes-vrsctest-configure.yml
+```
+
+This step is required because the repo has no `config.js` and no `Dockerfile` — both are generated from VRSCTEST credentials at deploy time.
+
+**What it writes:**
+
+- `config.js` — contains `RPC_HOST`, `RPC_PORT`, `RPC_USER`, `RPC_PASSWORD` sourced from `vrsctest.conf` on BWD. Baked into the image at build time.
+- `Dockerfile` — 2-stage Alpine-based build:
+  - **Builder:** `node:20-alpine` + git + yarn; runs `yarn install` (fetches `git+https://` deps from GitHub) then `yarn build`
+  - **Runtime:** `node:20-alpine` + curl; copies `dist/`, `node_modules/`, `views/`, `public/`, `config.js` from builder
+
+Re-run this whenever you want to refresh credentials or the `Dockerfile` template.
+
+---
+
+## Step 3 — Build Docker Image
+
+```bash
+ansible-playbook -i inventory.ini playbooks/35-qrcodes-vrsctest-build.yml
+```
+
+Builds `buildwithdreams/verus-qr-creator:vrsctest`. Skips if image exists and clean build not needed.
+
+**Force rebuild** (after `34b` changes, or source updates):
+```bash
+ansible-playbook -i inventory.ini playbooks/35-qrcodes-vrsctest-build.yml -e qrcodes_rebuild=true
 ```
 
 ---
 
-## Procedure
+## Step 4 — Deploy Container
 
-### Step 1 — Clone repository
-
-```
-Delegate: ansible-playbook -i inventory.ini playbooks/34-qrcodes-clone.yml
+```bash
+ansible-playbook -i inventory.ini playbooks/36-qrcodes-vrsctest-deploy.yml
 ```
 
-This playbook:
-1. Clones `VerusCoin/verus-identity-update-qr-creator-main` to `~/verus-identity-update-qr-creator-main`
-2. Is **idempotent** — skips if already present; does `git pull` to update
+- Removes any existing `dev200_qr-qr-1` container
+- Writes `docker-compose.yml` targeting `net-vrsctest` at fixed IP `10.200.0.13`
+- Starts container with healthcheck (`wget localhost:3000`), restart `unless-stopped`
 
-### Step 2 — Build Docker image
+**No host port is bound** — the container is accessible only within `net-vrsctest`. Caddy reaches it over the Docker network.
 
-```
-Delegate: ansible-playbook -i inventory.ini playbooks/35-qrcodes-build.yml
-         -e qrcodes_rebuild=true   (force clean build, bypass Docker cache)
-```
+---
 
-This playbook:
-1. Builds `buildwithdreams/verus-qr-creator:vrsctest` (and tags `latest`)
-2. Uses multi-stage Docker build: `node:20-alpine` builder → `node:20-alpine` runtime
-3. Runs `yarn install --immutable && yarn build` inside the builder stage
-4. Skips if image exists and `qrcodes_rebuild` is not set
+## Step 5 — Connect Caddy to `net-vrsctest`
 
-> Use `-e qrcodes_rebuild=true` when the source has changed or the image is stale.
-
-### Step 3 — Deploy container
-
-```
-Delegate: ansible-playbook -i inventory.ini playbooks/36-qrcodes-deploy.yml
+```bash
+ansible-playbook -i inventory.ini playbooks/37-qrcodes-vrsctest-caddy-network.yml
 ```
 
-This playbook:
-1. Removes any existing container (`dev200_qr-qr-1`)
-2. Writes `docker-compose.yml` targeting `net-vrsctest` at IP `10.200.0.13`
-3. Runs `docker compose up -d --force-recreate`
-4. Waits for container to appear in `docker ps`
+Attaches the existing Caddy container to `net-vrsctest`. Caddy is already on `net-vrsc-blue` — after this it is multi-homed on both networks. Idempotent.
 
-### Step 4 — Connect Caddy to net-vrsctest
+---
 
-```
-Delegate: ansible-playbook -i inventory.ini playbooks/37-qrcodes-caddy-network.yml
+## Step 6 — Add Caddy Route
+
+```bash
+ansible-playbook -i inventory.ini playbooks/38-qrcodes-vrsctest-caddy-route.yml
 ```
 
-This playbook:
-1. Verifies Caddy container (`mains_blue_caddy-caddy-1`) is running
-2. Runs `docker network connect net-vrsctest <container>` to attach Caddy to the VRSCTEST network
-3. Caddy is **already on `net-vrsc-blue`** — after this it is multi-homed on both networks
-4. Is **idempotent** — skips if already connected
+1. Pre-flight: verifies Caddy is on `net-vrsctest`; aborts if not
+2. Appends `qrcodes.vrsctest.buildwithdreams.com` route block to the Caddyfile (idempotent — skips if already present)
+3. Validates Caddyfile syntax
+4. Reloads Caddy
+5. Health-checks upstream from inside Caddy; warns if QR Creator is unreachable
 
-> Caddy must be on `net-vrsctest` to be able to reach `10.200.0.13:3000`.
+---
 
-### Step 5 — Add Caddy route
+## Verify
 
-```
-Delegate: ansible-playbook -i inventory.ini playbooks/38-qrcodes-caddy-route.yml
-```
-
-This playbook:
-1. **Pre-flight check** — verifies Caddy is connected to `net-vrsctest` before touching anything; aborts if missing
-2. Appends `qrcodes.vrsctest.buildwithdreams.com` route block to the Caddyfile using `blockinfile`
-3. Runs `caddy fmt --overwrite` to format the file cleanly (no more Caddy warnings)
-4. Validates the Caddyfile before reloading (aborts if invalid)
-5. Runs `docker exec caddy caddy reload` to apply the new route
-6. **Health check** — hits the upstream from inside the Caddy container; warns if the QR Creator is unreachable
-7. Is **idempotent** — safe to re-run; skips all changes if route already present
-
-### Step 6 — Verify
-
-Check the deployed URL:
 ```bash
 curl -I https://qrcodes.vrsctest.buildwithdreams.com
 ```
 
-Expected: `HTTP/2 200` from the QR Creator's Express server.
+Expected: `HTTP/2 200`, `content-type: text/html`
 
-To verify container health from the server:
 ```bash
-ssh <host> "docker ps | grep qr"
-ssh <host> "curl -s http://10.200.0.13:3000/ | head"
+ssh <bwd-host> "docker ps --filter 'name=dev200_qr'"
+ssh <bwd-host> "docker logs dev200_qr-qr-1 --tail 5"
+```
+
+Expected: `Up` with `(healthy)` status.
+
+---
+
+## Full Re-deploy (all steps)
+
+After any source change or when starting fresh:
+
+```bash
+cd ~/dream-pbaas-provisioning
+ansible-playbook -i inventory.ini playbooks/34-qrcodes-vrsctest-clone.yml
+ansible-playbook -i inventory.ini playbooks/34b-qrcodes-vrsctest-configure.yml
+ansible-playbook -i inventory.ini playbooks/35-qrcodes-vrsctest-build.yml -e qrcodes_rebuild=true
+ansible-playbook -i inventory.ini playbooks/36-qrcodes-vrsctest-deploy.yml
+ansible-playbook -i inventory.ini playbooks/37-qrcodes-vrsctest-caddy-network.yml
+ansible-playbook -i inventory.ini playbooks/38-qrcodes-vrsctest-caddy-route.yml
 ```
 
 ---
@@ -163,54 +195,64 @@ ssh <host> "curl -s http://10.200.0.13:3000/ | head"
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
-|---|---|---|
-| `502 Bad Gateway` | Caddy not yet connected to `net-vrsctest` | Run `37-qrcodes-caddy-network.yml` |
-| `Connection refused` | QR Creator container not running, or not reachable from Caddy | Run `36-qrcodes-deploy.yml`; check `docker logs dev200_qr-qr-1`; verify with `docker exec mains_blue_caddy-caddy-1 wget -q -O - --timeout=5 http://10.200.0.13:3000/` |
-| `curl: (6) Could not resolve host` | DNS not propagated | Wait 5-10 minutes for Let's Encrypt DNS propagation |
-| Container keeps restarting | Health check failing | `docker logs dev200_qr-qr-1`; rebuild with `-e qrcodes_rebuild=true` |
-| Route not responding | Caddyfile stale | Run `38-qrcodes-caddy-route.yml` again to reload |
+|---------|-------|-----|
+| `502 Bad Gateway` | Caddy not yet on `net-vrsctest` | Run step 5 |
+| `Connection refused` | Container not running or unreachable | `docker logs dev200_qr-qr-1`; run step 4 |
+| Container restarting, `MODULE_NOT_FOUND` | `node_modules` not in image | Rebuild: run step 3 with `-e qrcodes_rebuild=true` |
+| Container restarting, `Cannot find module 'express'` | Same as above | Same fix |
+| Container restarting, `Failed to lookup view "index"` | `views/` missing from image | Rebuild: run step 3 with `-e qrcodes_rebuild=true` |
+| `curl: (6) Could not resolve host` | DNS not propagated | Wait 5–10 min for Let's Encrypt DNS |
+| Route not responding | Caddyfile stale | Run step 6 to reload |
+| `rpcuser` extraction failed | `vrsctest.conf` not readable | Check VRSCTEST daemon is running and conf file exists at `~/.docker-verusd/vrsctest/data_dir/vrsctest.conf` |
 
-**Container restart loop:**
+**Container in restart loop — clear and rebuild:**
 ```bash
-docker rm -f dev200_qr-qr-1
-# Then re-run Step 3
+ssh <bwd-host> "docker rm -f dev200_qr-qr-1"
+# Then re-run steps 3–4
 ```
 
 ---
 
 ## Rollback
 
-To remove the QR Creator container:
+**Remove container only:**
 ```bash
-ssh bwd "docker rm -f dev200_qr-qr-1"
+ssh <bwd-host> "docker rm -f dev200_qr-qr-1"
 ```
 
-To remove the Caddy route (disables the domain only, container keeps running):
-The route block is managed by playbook `38`. To remove it cleanly, edit `~/caddy/Caddyfile` and remove the `qrcodes.vrsctest.buildwithdreams.com` block, then reload:
+**Remove Caddy route (container keeps running):**
+Edit `~/caddy/Caddyfile` on BWD, remove the `qrcodes.vrsctest.buildwithdreams.com` block, then:
 ```bash
-ssh bwd "docker exec mains_blue_caddy-caddy-1 caddy reload --config /config/caddy/Caddyfile"
+ssh <bwd-host> "docker exec mains_blue_caddy-caddy-1 caddy reload --config /config/caddy/Caddyfile"
 ```
 
-To detach Caddy from `net-vrsctest`:
+**Detach Caddy from `net-vrsctest`:**
 ```bash
-ssh bwd "docker network disconnect net-vrsctest mains_blue_caddy-caddy-1"
+ssh <bwd-host> "docker network disconnect net-vrsctest mains_blue_caddy-caddy-1"
+```
+
+**Remove image:**
+```bash
+ssh <bwd-host> "docker rmi buildwithdreams/verus-qr-creator:vrsctest"
 ```
 
 ---
 
 ## Relevant Playbooks
 
-| # | Playbook | Purpose |
-|---|---|---|
-| `34` | `34-qrcodes-clone.yml` | Clone repo |
-| `35` | `35-qrcodes-build.yml` | Build Docker image |
-| `36` | `36-qrcodes-deploy.yml` | Deploy container on `net-vrsctest` at `10.200.0.13` |
-| `37` | `37-qrcodes-caddy-network.yml` | Attach Caddy to `net-vrsctest` |
-| `38` | `38-qrcodes-caddy-route.yml` | Add HTTPS route in Caddy |
-| `08b` | `08b-start-vrsctest.yml` | Start VRSCTEST daemon (prereq) |
+| # | File | Purpose |
+|---|------|---------|
+| 34 | `34-qrcodes-vrsctest-clone.yml` | Clone repo to BWD |
+| 34b | `34b-qrcodes-vrsctest-configure.yml` | Write `config.js` + `Dockerfile` |
+| 35 | `35-qrcodes-vrsctest-build.yml` | Build Docker image |
+| 36 | `36-qrcodes-vrsctest-deploy.yml` | Deploy container at `10.200.0.13` |
+| 37 | `37-qrcodes-vrsctest-caddy-network.yml` | Attach Caddy to `net-vrsctest` |
+| 38 | `38-qrcodes-vrsctest-caddy-route.yml` | Add HTTPS route |
+| 08b | `08b-start-vrsctest.yml` | Start VRSCTEST daemon (prereq) |
 
 ---
 
 ## History
 
-- **2026-04-28** — Created. Follows the same IP-numbering convention as VRSC mainnet (`10.201.0.13` → `10.200.0.13`), with a dedicated Caddy route on `qrcodes.vrsctest.buildwithdreams.com`.
+- **2026-04-30** — Rewrite. Added step 34b (configure) which generates `config.js` and `Dockerfile` — neither existed in the source repo. Repo URL corrected to `BuildWithDreams/...`. Dockerfile now includes `views/` and `public/` dirs at runtime. Image tagged `vrsctest` only (not `latest`). All playbooks renamed with `-vrsctest-` infix. Playbook 37/38 template escaping fixed (Jinja2 `{{ }}` vs Go template conflict).
+- **2026-04-28** — Created.
