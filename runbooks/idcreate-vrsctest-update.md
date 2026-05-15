@@ -16,6 +16,8 @@ parent: Deployment
 **Service IP:** `10.200.0.14`
 **URL:** `https://idcreate.vrsctest.buildwithdreams.com`
 
+> **v2 change (2026-05-15):** PostgreSQL container is now part of the stack. The update playbook waits for postgres to be healthy before declaring success. Total containers: 4.
+
 ---
 
 ## Prerequisites
@@ -41,7 +43,8 @@ This playbook (in order):
 4. **Stops** running containers
 5. **Rebuilds** `buildwithdreams/svc-idcreate:local` from latest code
 6. **Starts** containers with `docker compose up -d --force-recreate`
-7. **Verifies** api container appears in `docker ps`
+7. **Waits** for postgres container to become healthy (`pg_isready`)
+8. **Verifies** api container appears in `docker ps`
 
 > `.env` is restored unconditionally after every pull. This is required because git operations can remove or replace untracked files during merge/rebase.
 
@@ -64,6 +67,8 @@ ssh bwd "curl -s http://10.200.0.14:5003/health"
 ```bash
 ssh bwd "docker logs dev200_idcreate-api-1 --tail 30"
 ssh bwd "docker logs dev200_idcreate-worker-1 --tail 30"
+ssh bwd "docker logs dev200_idcreate-postgres-1 --tail 20"
+ssh bwd "docker logs dev200_idcreate-provisioning-1 --tail 30"
 ```
 
 ---
@@ -91,6 +96,7 @@ Common causes:
 | Symptom | Check | Fix |
 |---|---|---|
 | Container not starting | `docker logs dev200_idcreate-api-1` | Check for import errors or missing env vars |
+| PostgreSQL not healthy | `docker logs dev200_idcreate-postgres-1` | Check `pg_isready` output; disk space |
 | RPC unreachable | `docker logs dev200_idcreate-api-1` | Verify VRSCTEST daemon at `10.200.0.11:18843` is running |
 | .env missing | `ls ~/svc-idcreate/.env*` on server | `cp ~/.env.backup ~/.env` then restart |
 | Image missing | `docker images | grep svc-idcreate` | Run `40-idcreate-build.yml` first |
@@ -132,9 +138,11 @@ Delegate: ansible-playbook -i inventory.ini playbooks/45-idcreate-update.yml
 | `45` | `45-idcreate-update.yml` | Pull + rebuild + restart idcreate stack |
 | `40` | `40-idcreate-build.yml` | Build image (used by 45, rarely needed alone) |
 | `41` | `41-idcreate-deploy.yml` | Full deploy — writes `.env` fresh |
+| `47` | `47-idcreate-restart.yml` | Restart to pick up .env changes (includes postgres health wait) |
 
 ---
 
 ## History
 
 - **2026-04-30** — Created. Pull/rebuild/restart pattern for svc-idcreate on VRSCTEST. `.env` is backed up before pull and restored unconditionally after to survive git merge side-effects.
+- **2026-05-15** — v2 postgres migration. PostgreSQL 16-alpine added to stack. Update playbook now waits for `postgres` container to be healthy before completing. `database is locked` errors from v1 are resolved.
