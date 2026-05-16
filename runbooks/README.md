@@ -29,8 +29,21 @@ Step-by-step operational procedures for BWD infrastructure.
 | [Deploy RPC Server on VRSCTEST](vrsctest-rpc-server-deploy/) | Build and deploy Rust RPC server on VRSCTEST testnet | No |
 | [Deploy QRcodes on VRSCTEST](qrcodes-vrsctest-deploy/) | Build and deploy QRcode creator on VRSCTEST testnet | No |
 | [Deploy idcreate on VRSCTEST](idcreate-vrsctest-deploy/) | Build and deploy Verus identity creation service on VRSCTEST testnet | No |
+| [Deploy idcreate on VRSC](idcreate-vrsc-deploy/) | Build and deploy Verus identity creation service on VRSC mainnet | No |
 | [Deploy RPC Server](rpc-server-deploy/) | Build and deploy Rust RPC server (VRSC mainnet) | No |
 | [Deploy RVT SPA](rvt-deploy/) | Deploy RVT single-page app | No |
+
+## Conventions
+
+Operational standards and patterns for all playbooks and runbooks:
+
+| Convention | Description |
+|---|---|
+| [Caddyfile management](idcreate-vrsc-deploy/#caddyfile-management) | Host file edits + validate/reload (no docker cp, no fmt inside container) |
+| [Route idempotency checks](idcreate-vrsc-deploy/#route-idempotency-checks) | Use `grep -Fq` for exact-domain matching |
+| [Variable scoping](idcreate-vrsc-deploy/#variable-scoping) | Chain-prefixed vars (`idcreate_vrsc_*`) vs shared defaults |
+| [Docker network routing](idcreate-vrsc-deploy/#docker-network-routing) | PBaaS chains isolated by network; Caddy must be multi-homed |
+| [Compose project naming](idcreate-vrsc-deploy/#compose-project-naming) | Use `COMPOSE_PROJECT_NAME` env var, not hardcoded `container_name` |
 
 ## Emergency
 
